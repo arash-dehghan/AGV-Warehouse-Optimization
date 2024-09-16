@@ -71,10 +71,10 @@ pip install networkx
 ## Citing this Work
 To cite this work, please use the following:
 ```bash
-@article{dehghan2023neural,
-  title={Neural Approximate Dynamic Programming for the Ultra-fast Order Dispatching Problem},
+@article{dehghan2023dynamic,
+  title={Dynamic AGV Task Allocation in Intelligent Warehouses},
   author={Dehghan, Arash and Cevik, Mucahit and Bodur, Merve},
-  journal={arXiv preprint arXiv:2311.12975},
+  journal={arXiv preprint arXiv:2312.16026},
   year={2023}
 }
 ```
