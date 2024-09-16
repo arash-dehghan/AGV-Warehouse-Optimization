@@ -1,4 +1,4 @@
-# NeurADP for Ultra-fast Order Dispatching
+# Dynamic AGV Task Allocation in Intelligent Warehouses
 
 This repository provides complementary code and data for the article [Dynamic AGV Task Allocation in Intelligent Warehouses](https://arxiv.org/pdf/2312.16026).
 
