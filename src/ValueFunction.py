@@ -20,9 +20,9 @@ class NeurADP():
 		self.gamma = 0.9
 		self.batch_size_fit = 32 # Number of samples per batch to use during fitting
 		self.batch_size_predict = 32 # Number of samples per batch to use during prediction
-		self.target_update_tau = 0.1
+		self.target_update_tau = 0.001
 		self.num_min_train_samples = 1000 # Minimum size of replay buffer needed to begin sampling
-		self.num_samples = 50
+		self.num_samples = 10
 
 		# Get Replay Buffer
 		min_len_replay_buffer = 1e6 / (self.envt.num_humans + self.envt.num_robots) # What is the size of the replay buffer???
@@ -302,8 +302,8 @@ class NeurADP():
 			delay_of_orders = action[2]
 			action_description = [act for act in action_description if act != '']
 			reward = len(action_description) - 1
-			return (self.M * reward - delay_of_orders) + self.gamma * value
-			# return reward + self.gamma * value
+			# return (self.M * reward - delay_of_orders) + self.gamma * value
+			return reward + self.gamma * value
 
 	def pair_scores(self, scored_actions_all_agents, agents_matchings):
 		final_pairings = {agent_id : {} for agent_id in range(len(agents_matchings))}

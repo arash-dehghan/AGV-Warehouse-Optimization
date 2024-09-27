@@ -59,7 +59,6 @@ def make_matchings(agents, feasible_actions, humans_first, battery_breakoff, cur
 		agent_feasible_actions = feasible_actions[agent_id]
 		matching_actions, rebalancing_actions, charging_actions = breakdown_actions(agent_feasible_actions)
 		matching_actions = filter_matching_actions(matching_actions, orders_dealt_with)
-		# print('***')
 		if agent.is_human:
 			if len(matching_actions) > 0:
 				assigned_actions[agent.id] = matching_actions[0]
@@ -143,7 +142,6 @@ def run_epoch(envt, central_agent, value_function, requests, request_generator, 
 		num_robots_charging, avg_robot_battery_percentage, avg_robot_capacity, avg_human_capacity, num_human_only_orders, num_both_orders = central_agent.get_external_infor(agents, current_orders)
 
 		matchings = make_matchings(agents, feasible_actions, humans_first, battery_breakoff, current_orders)
-		# exit()
 
 		# assert matchings[0][1] not in ['R_90', 'R_9']
 		# print(f'Matched Action: {matchings[i]}')
@@ -202,20 +200,20 @@ if __name__ == '__main__':
 	parser.add_argument('-epoch_length', '--epoch_length', type=int , default=5)
 	parser.add_argument('-order_multiplier', '--order_multiplier', type=int, default=5)
 	parser.add_argument('-percentage_only_human_orders', '--percentage_only_human_orders', type=float, default=0.0)
-	parser.add_argument('-dt', '--delaytime', type=float, default=15)
+	parser.add_argument('-dt', '--delaytime', type=float, default=20)
 	parser.add_argument('-human_capacity', '--human_capacity', type=float, default=2)
 	parser.add_argument('-robot_capacity', '--robot_capacity', type=float, default=2)
 	parser.add_argument('-rebalancing_allowed', '--rebalancing_allowed', type=float, default=0)
 	parser.add_argument('-train_days', '--train_days', type=int, default=60)
-	parser.add_argument('-test_days', '--test_days', type=int, default=100)
+	parser.add_argument('-test_days', '--test_days', type=int, default=5)
 	parser.add_argument('-test_every', '--test_every', type=int, default=5)
 	parser.add_argument('-seed', '--seed', type=int , default=1)
 	args = parser.parse_args()
 	args.numagents, args.battery_reduction_epoch = (args.num_humans + args.num_robots), (args.battery_rate * args.epoch_length)
 
 	global humans_first, battery_breakoff
-	humans_first = False
-	battery_breakoff = 60
+	humans_first = True
+	battery_breakoff = 20
 
 	filename = f'{args.num_rows * args.num_cols}_{args.num_cs}_{args.remove_vert}_{args.horizon_length}_{args.edge_travel_time_human}_{args.edge_travel_time_robot}_{args.epoch_length}_{args.order_multiplier}_{args.percentage_only_human_orders}_{args.seed}'
 	request_generator = pickle.load(open(f'../data/generations/{filename}/data_{filename}.pickle','rb'))
@@ -230,7 +228,6 @@ if __name__ == '__main__':
 
 	cum_stats, std_served_stats, std_seen_stats = [], [], []
 	test_served, test_seen = [], []
-
 	for test_day in tqdm(range(args.test_days)):
 		orders = deepcopy(test_data[test_day])
 		agents = [LearningAgent(human, True, human_start_loc_test[test_day][human], 100) for human in range(args.num_humans)]  + [LearningAgent(robot, False, robot_start_loc_test[test_day][robot_id], robot_battery_life_test[test_day][robot_id]) for robot_id, robot in enumerate(range(args.num_humans, args.num_robots + args.num_humans))]
@@ -242,13 +239,12 @@ if __name__ == '__main__':
 		test_served.append(served)
 		test_seen.append(seen)
 
-	result_collector.update_results(0, cum_stats)
-	result_collector.std_served_stats[0] = np.std(std_served_stats)
-	result_collector.std_seen_stats[0] = np.std(std_seen_stats)
-
-	print(test_served)
-
 	print(f'Avg. Seen : {round(np.mean(test_seen),2)} +/- {round(np.std(test_seen),2)} |||| Avg. Served: {round(np.mean(test_served),2)} +/- {round(np.std(test_served),2)}')
+	
+	# result_collector.update_results(0, cum_stats)
+	# result_collector.std_served_stats[0] = np.std(std_served_stats)
+	# result_collector.std_seen_stats[0] = np.std(std_seen_stats)
+
 	# print(f"Orders Seen: {round(sum(result_collector.results['Orders Seen'][0]),2)}, Orders Served: {round(sum(result_collector.results['Orders Served'][0]),2)}")
 
 	# file_data = f'{args.num_humans}_{args.num_robots}_{args.battery_rate}_{args.charging_rate}_{args.num_rows * args.num_cols}_{args.edge_travel_time_human}_{args.edge_travel_time_robot}_{args.percentage_only_human_orders}_{args.delaytime}_{args.human_capacity}_{args.robot_capacity}_{args.rebalancing_allowed}'

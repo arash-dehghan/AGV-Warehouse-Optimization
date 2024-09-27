@@ -14,6 +14,7 @@ from copy import deepcopy
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
+# import torch
 
 def ensure_batteries(agents):
 	for agent in agents:
@@ -62,6 +63,7 @@ def run_epoch(envt, central_agent, value_function, requests, request_generator, 
 
 		# Choose actions for each agent
 		matchings, scores = central_agent.choose_actions(final_pairings, id_to_pairings, len(agents), current_order_ids, is_training=is_training)
+
 		if matchings[0][1] in ['R_90', 'R_9']:
 			print(envt.rebalancing_nodes)
 			exit()
@@ -133,12 +135,12 @@ if __name__ == '__main__':
 	parser.add_argument('-epoch_length', '--epoch_length', type=int , default=5)
 	parser.add_argument('-order_multiplier', '--order_multiplier', type=int, default=5)
 	parser.add_argument('-percentage_only_human_orders', '--percentage_only_human_orders', type=float, default=0.0)
-	parser.add_argument('-dt', '--delaytime', type=float, default=15)
+	parser.add_argument('-dt', '--delaytime', type=float, default=17.5)
 	parser.add_argument('-human_capacity', '--human_capacity', type=float, default=2)
 	parser.add_argument('-robot_capacity', '--robot_capacity', type=float, default=2)
-	parser.add_argument('-rebalancing_allowed', '--rebalancing_allowed', type=float, default=0)
+	parser.add_argument('-rebalancing_allowed', '--rebalancing_allowed', type=float, default=1)
 	parser.add_argument('-train_days', '--train_days', type=int, default=60)
-	parser.add_argument('-test_days', '--test_days', type=int, default=50)
+	parser.add_argument('-test_days', '--test_days', type=int, default=5)
 	parser.add_argument('-test_every', '--test_every', type=int, default=5)
 	parser.add_argument('-seed', '--seed', type=int , default=1)
 	args = parser.parse_args()
@@ -157,20 +159,21 @@ if __name__ == '__main__':
 	robot_start_loc_test =  [request_generator.get_start_locations(args.num_robots) for _ in range(args.test_days)]
 	robot_battery_life_test = [request_generator.get_battery_percentage(day, args.battery_rate, envt.travel_time_robot) for day in robot_start_loc_test]
 
-	cum_stats, std_served_stats, std_seen_stats = [], [], []
+	# value_function.model.load_weights(f'../Results/model_weights_{file_data}.h5')
+
+	test_served, test_seen = [], []
+
 	for test_day in tqdm(range(args.test_days)):
 		orders = deepcopy(test_data[test_day])
 		agents = [LearningAgent(human, True, human_start_loc_test[test_day][human], 100) for human in range(args.num_humans)]  + [LearningAgent(robot, False, robot_start_loc_test[test_day][robot_id], robot_battery_life_test[test_day][robot_id]) for robot_id, robot in enumerate(range(args.num_humans, args.num_robots + args.num_humans))]
-		served, seen, stats = run_epoch(envt, central_agent, value_function, orders, request_generator, agents, False)
-		cum_stats.append(stats)
-		std_served_stats.append(served)
-		std_seen_stats.append(seen)
-	result_collector.update_results(0, cum_stats)
-	result_collector.std_served_stats[0] = np.std(std_served_stats)
-	result_collector.std_seen_stats[0] = np.std(std_seen_stats)
-	print(f'STD Seen: {np.std(std_seen_stats)}, STD Served: {np.std(std_served_stats)}')
-	print(f"Orders Seen: {round(sum(result_collector.results['Orders Seen'][0]),2)}, Orders Served: {round(sum(result_collector.results['Orders Served'][0]),2)}")
+		served, seen, _ = run_epoch(envt, central_agent, value_function, orders, request_generator, agents, False)
+
+		test_served.append(served)
+		test_seen.append(seen)
+
+	print(f'Avg. Seen : {round(np.mean(test_seen),2)} +/- {round(np.std(test_seen),2)} |||| Avg. Served: {round(np.mean(test_served),2)} +/- {round(np.std(test_served),2)}')
 	# exit()
+	max_served = 0
 
 	for train_day in tqdm(range(args.train_days)):
 		human_start_loc_train = request_generator.get_start_locations(args.num_humans)
@@ -178,23 +181,24 @@ if __name__ == '__main__':
 		robot_battery_life_train = request_generator.get_battery_percentage(robot_start_loc_train, args.battery_rate, envt.travel_time_robot)
 		agents = [LearningAgent(human, True, human_start_loc_train[human], 100) for human in range(args.num_humans)]  + [LearningAgent(robot, False, robot_start_loc_train[robot_id], robot_battery_life_train[robot_id]) for robot_id, robot in enumerate(range(args.num_humans, args.num_robots + args.num_humans))]
 		run_epoch(envt, central_agent, value_function, None, request_generator, agents, True)
+
 		if (train_day + 1) % args.test_every == 0:
-			cum_stats, std_served_stats, std_seen_stats = [], [], []
+			test_served, test_seen = [], []
+
 			for test_day in range(args.test_days):
 				orders = deepcopy(test_data[test_day])
 				agents = [LearningAgent(human, True, human_start_loc_test[test_day][human], 100) for human in range(args.num_humans)]  + [LearningAgent(robot, False, robot_start_loc_test[test_day][robot_id], robot_battery_life_test[test_day][robot_id]) for robot_id, robot in enumerate(range(args.num_humans, args.num_robots + args.num_humans))]
-				served, seen, stats = run_epoch(envt, central_agent, value_function, orders, request_generator, agents, False)
-				cum_stats.append(stats)
-				std_served_stats.append(served)
-				std_seen_stats.append(seen)
-			result_collector.update_results(train_day + 1, cum_stats)
-			result_collector.std_served_stats[train_day + 1] = np.std(std_served_stats)
-			result_collector.std_seen_stats[train_day + 1] = np.std(std_seen_stats)
-			print(f'STD Seen: {np.std(std_seen_stats)}, STD Served: {np.std(std_served_stats)}')
-			print(f"Orders Seen: {round(sum(result_collector.results['Orders Seen'][0]),2)}, Orders Served: {round(sum(result_collector.results['Orders Served'][train_day + 1]),2)}")
-			# value_function.model.save(f'../Results/NeurADP_{train_day + 1}_{file_data}.h5')
+				served, seen, _ = run_epoch(envt, central_agent, value_function, orders, request_generator, agents, False)
 
-	value_function.model.save(f'../Results/NeurADP_{file_data}.h5')
-	with open(f'../Results/NeurADP_{file_data}.pickle', 'wb') as handle:
-		pickle.dump(result_collector, handle, protocol=pickle.HIGHEST_PROTOCOL)
+				test_served.append(served)
+				test_seen.append(seen)
+
+			print(f'Avg. Seen : {round(np.mean(test_seen),2)} +/- {round(np.std(test_seen),2)} |||| Avg. Served: {round(np.mean(test_served),2)} +/- {round(np.std(test_served),2)}')
+
+			if max_served < np.mean(test_served):
+				max_served = np.mean(test_served)
+				value_function.model.save_weights(f'../Results/model_weights_{file_data}.h5')
+
+
+
 
